@@ -75,6 +75,7 @@ typings/
 
 # Tooling / local workspace
 .trae/
+.repo_sync/
 supabase/.temp/
 Test/
 
