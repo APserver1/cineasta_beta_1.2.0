@@ -151,6 +151,18 @@ const EscaletaTab = ({ project, onUpdateProject, readOnly = false }) => {
   const sceneRefs = useRef(new Map());
 
   useEffect(() => {
+    if (lastAddedId && sceneRefs.current.has(lastAddedId)) {
+      const el = sceneRefs.current.get(lastAddedId);
+      if (el) {
+        // Wait for layout update
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+  }, [lastAddedId, scenes]);
+
+  useEffect(() => {
       latestLastStateRef.current = project?.last_state || {};
   }, [project?.last_state]);
 
@@ -254,6 +266,12 @@ const EscaletaTab = ({ project, onUpdateProject, readOnly = false }) => {
                                         inputRef={(el) => {
                                             if (el) sceneRefs.current.set(scene.id, el);
                                             else sceneRefs.current.delete(scene.id);
+                                        }}
+                                        onFocus={(e) => {
+                                            // Scroll to scene when focused (delay to allow keyboard to pop up on mobile or layout adjustments)
+                                            setTimeout(() => {
+                                                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                            }, 100);
                                         }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && !e.shiftKey) {
