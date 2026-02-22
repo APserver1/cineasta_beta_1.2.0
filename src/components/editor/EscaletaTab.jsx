@@ -4,7 +4,7 @@ import ConceptMap from './ConceptMap';
 import { Plus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const AutoResizeTextarea = ({ value, onChange, onFocus, readOnly, placeholder, className }) => {
+const AutoResizeTextarea = ({ value, onChange, onFocus, onKeyDown, readOnly, placeholder, className, autoFocus, inputRef }) => {
     const textareaRef = useRef(null);
 
     useLayoutEffect(() => {
@@ -14,16 +14,26 @@ const AutoResizeTextarea = ({ value, onChange, onFocus, readOnly, placeholder, c
         }
     }, [value]);
 
+    const setRefs = (el) => {
+        textareaRef.current = el;
+        if (inputRef) {
+            if (typeof inputRef === 'function') inputRef(el);
+            else inputRef.current = el;
+        }
+    };
+
     return (
         <textarea
-            ref={textareaRef}
+            ref={setRefs}
             value={value}
             onChange={onChange}
             onFocus={onFocus}
+            onKeyDown={onKeyDown}
             readOnly={readOnly}
             className={className}
             placeholder={placeholder}
             rows={1}
+            autoFocus={autoFocus}
         />
     );
 };
@@ -31,6 +41,7 @@ const AutoResizeTextarea = ({ value, onChange, onFocus, readOnly, placeholder, c
 const EscaletaTab = ({ project, onUpdateProject, readOnly = false }) => {
   const [scenes, setScenes] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [lastAddedId, setLastAddedId] = useState(null);
   const isFirstLoad = useRef(true);
 
   // Load initial data
@@ -112,6 +123,7 @@ const EscaletaTab = ({ project, onUpdateProject, readOnly = false }) => {
     }));
 
     setScenes(reorderedScenes);
+    setLastAddedId(newScene.id);
   };
 
   const updateScene = (id, newDescription) => {
@@ -136,6 +148,7 @@ const EscaletaTab = ({ project, onUpdateProject, readOnly = false }) => {
   const scrollTimeoutRef = useRef(null);
   const latestLastStateRef = useRef(project?.last_state || {});
   const scrollRestoredRef = useRef(false);
+  const sceneRefs = useRef(new Map());
 
   useEffect(() => {
       latestLastStateRef.current = project?.last_state || {};
@@ -238,8 +251,53 @@ const EscaletaTab = ({ project, onUpdateProject, readOnly = false }) => {
                                         value={scene.description}
                                         onChange={(e) => updateScene(scene.id, e.target.value)}
                                         readOnly={readOnly}
+                                        inputRef={(el) => {
+                                            if (el) sceneRefs.current.set(scene.id, el);
+                                            else sceneRefs.current.delete(scene.id);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                addScene(index);
+                                                return;
+                                            }
+
+                                            const textarea = e.target;
+                                            const { selectionStart, selectionEnd, value } = textarea;
+                                            const isAtStart = selectionStart === 0 && selectionEnd === 0;
+                                            const isAtEnd = selectionStart === value.length && selectionEnd === value.length;
+
+                                            // Previous Scene (Up or Left at start)
+                                            if ((e.key === 'ArrowUp' || e.key === 'ArrowLeft') && isAtStart) {
+                                                if (index > 0) {
+                                                    e.preventDefault();
+                                                    const prevScene = scenes[index - 1];
+                                                    const prevEl = sceneRefs.current.get(prevScene.id);
+                                                    if (prevEl) {
+                                                        prevEl.focus();
+                                                        // Set cursor to end
+                                                        prevEl.setSelectionRange(prevEl.value.length, prevEl.value.length);
+                                                    }
+                                                }
+                                            }
+
+                                            // Next Scene (Down or Right at end)
+                                            if ((e.key === 'ArrowDown' || e.key === 'ArrowRight') && isAtEnd) {
+                                                if (index < scenes.length - 1) {
+                                                    e.preventDefault();
+                                                    const nextScene = scenes[index + 1];
+                                                    const nextEl = sceneRefs.current.get(nextScene.id);
+                                                    if (nextEl) {
+                                                        nextEl.focus();
+                                                        // Set cursor to start
+                                                        nextEl.setSelectionRange(0, 0);
+                                                    }
+                                                }
+                                            }
+                                        }}
                                         className="w-full min-h-[100px] resize-none outline-none text-gray-700 bg-transparent text-lg leading-relaxed overflow-hidden"
                                         placeholder="Describe lo que sucede en esta escena..."
+                                        autoFocus={scene.id === lastAddedId}
                                     />
                                     
                                     <button 
