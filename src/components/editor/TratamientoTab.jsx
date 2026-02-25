@@ -7,6 +7,71 @@ const TratamientoTab = ({ project, onUpdateProject, readOnly = false }) => {
   const [treatments, setTreatments] = useState({});
   const [saving, setSaving] = useState(false);
   const isFirstLoad = useRef(true);
+  const scrollRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+  const latestLastStateRef = useRef(project?.last_state || {});
+  const scrollRestoredRef = useRef(false);
+
+  useEffect(() => {
+      latestLastStateRef.current = project?.last_state || {};
+  }, [project?.last_state]);
+
+  // Restore scroll position logic
+  useEffect(() => {
+      // If already restored or no saved position, skip
+      if (scrollRestoredRef.current) return;
+      
+      const savedScroll = project?.last_state?.tratamientoScroll;
+      if (!savedScroll || !scrollRef.current) return;
+
+      // Only attempt restore if we have scenes rendered
+      if (scenes.length === 0) return;
+
+      // Wait a bit for layout/height adjustments
+      const timer = setTimeout(() => {
+          if (scrollRef.current) {
+              scrollRef.current.scrollTop = savedScroll;
+              // Check if we managed to scroll at least partially to the target
+              if (scrollRef.current.scrollTop > 0 || savedScroll === 0) {
+                  scrollRestoredRef.current = true;
+              }
+          }
+      }, 150); // Slightly longer for Tratamiento as it's heavier
+
+      return () => clearTimeout(timer);
+  }, [project?.last_state, scenes]);
+
+  const handleScroll = (e) => {
+      if (readOnly) return;
+      
+      const scrollTop = e.target.scrollTop;
+      
+      if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+      }
+
+      scrollTimeoutRef.current = setTimeout(async () => {
+          const newState = {
+              ...(latestLastStateRef.current || {}),
+              tratamientoScroll: scrollTop
+          };
+          
+          // Update parent state (memory)
+          if (onUpdateProject) {
+              onUpdateProject({ last_state: newState });
+          }
+
+          // Save to DB (persistence)
+          try {
+              await supabase
+                  .from('proyectos_cineasta')
+                  .update({ last_state: newState })
+                  .eq('id', project.id);
+          } catch (error) {
+              console.error('Error saving scroll position:', error);
+          }
+      }, 800);
+  };
 
   // Load initial data
   useEffect(() => {
@@ -124,7 +189,13 @@ const TratamientoTab = ({ project, onUpdateProject, readOnly = false }) => {
 
   return (
     <div className="flex flex-col h-full w-full">
-        <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 p-4 md:p-8" data-pins-surface="tratamiento" data-pins-type="scroll">
+        <div 
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex-1 min-h-0 overflow-y-auto bg-gray-50 p-4 md:p-8" 
+            data-pins-surface="tratamiento" 
+            data-pins-type="scroll"
+        >
             <div className="max-w-[1600px] mx-auto">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-2xl font-bold text-gray-900">Tratamiento</h2>
