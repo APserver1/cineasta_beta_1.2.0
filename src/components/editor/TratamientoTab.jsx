@@ -1,6 +1,37 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { Plus } from 'lucide-react';
+
+const AutoResizeTextarea = ({ value, onChange, onFocus, onKeyDown, readOnly, placeholder, className, dataIndex }) => {
+    const textareaRef = useRef(null);
+
+    useLayoutEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+        }
+    }, [value]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            value={value}
+            data-treatment-index={dataIndex}
+            onChange={onChange}
+            onFocus={(e) => {
+                // Ensure initial height is correct on focus too
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+                if (onFocus) onFocus(e);
+            }}
+            onKeyDown={onKeyDown}
+            readOnly={readOnly}
+            className={className}
+            placeholder={placeholder}
+            rows={1}
+        />
+    );
+};
 
 const TratamientoTab = ({ project, onUpdateProject, readOnly = false }) => {
   const [scenes, setScenes] = useState([]);
@@ -151,6 +182,8 @@ const TratamientoTab = ({ project, onUpdateProject, readOnly = false }) => {
                 // Set cursor to the end
                 const len = prevTextarea.value.length;
                 prevTextarea.setSelectionRange(len, len);
+                // Scroll into view
+                prevTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
     }
@@ -163,6 +196,8 @@ const TratamientoTab = ({ project, onUpdateProject, readOnly = false }) => {
                 nextTextarea.focus();
                 // Set cursor to the beginning
                 nextTextarea.setSelectionRange(0, 0);
+                // Scroll into view
+                nextTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
     }
@@ -259,18 +294,10 @@ const TratamientoTab = ({ project, onUpdateProject, readOnly = false }) => {
                                             <span className="absolute top-4 left-5 text-xs font-bold text-purple-400 tracking-wider uppercase select-none">
                                                 ESCENA {scene.number}
                                             </span>
-                                            <textarea 
+                                            <AutoResizeTextarea 
                                                 value={treatments[scene.id] || ''}
-                                                data-treatment-index={index}
-                                                onChange={(e) => {
-                                                    updateTreatment(scene.id, e.target.value);
-                                                    e.target.style.height = 'auto';
-                                                    e.target.style.height = e.target.scrollHeight + 'px';
-                                                }}
-                                                onFocus={(e) => {
-                                                    e.target.style.height = 'auto';
-                                                    e.target.style.height = e.target.scrollHeight + 'px';
-                                                }}
+                                                dataIndex={index}
+                                                onChange={(e) => updateTreatment(scene.id, e.target.value)}
                                                 onKeyDown={(e) => handleKeyDown(e, index)}
                                                 readOnly={readOnly}
                                                 className="w-full h-full mt-6 resize-none outline-none text-gray-800 bg-transparent text-lg leading-relaxed overflow-hidden"
