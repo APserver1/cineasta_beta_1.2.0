@@ -135,6 +135,39 @@ const TratamientoTab = ({ project, onUpdateProject, readOnly = false }) => {
     }));
   };
 
+  const handleKeyDown = (e, index) => {
+    const { key, target } = e;
+    const selectionStart = target.selectionStart;
+    const selectionEnd = target.selectionEnd;
+    const textLength = target.value.length;
+
+    // Arrow Up or Left at the beginning
+    if ((key === 'ArrowUp' || key === 'ArrowLeft') && selectionStart === 0 && selectionEnd === 0) {
+        if (index > 0) {
+            e.preventDefault();
+            const prevTextarea = document.querySelectorAll('[data-treatment-index]')[index - 1];
+            if (prevTextarea) {
+                prevTextarea.focus();
+                // Set cursor to the end
+                const len = prevTextarea.value.length;
+                prevTextarea.setSelectionRange(len, len);
+            }
+        }
+    }
+    // Arrow Down or Right at the end
+    else if ((key === 'ArrowDown' || key === 'ArrowRight') && selectionStart === textLength && selectionEnd === textLength) {
+        if (index < scenes.length - 1) {
+            e.preventDefault();
+            const nextTextarea = document.querySelectorAll('[data-treatment-index]')[index + 1];
+            if (nextTextarea) {
+                nextTextarea.focus();
+                // Set cursor to the beginning
+                nextTextarea.setSelectionRange(0, 0);
+            }
+        }
+    }
+  };
+
   const addScene = async (index) => {
     if (readOnly) return;
     const newScene = {
@@ -228,6 +261,7 @@ const TratamientoTab = ({ project, onUpdateProject, readOnly = false }) => {
                                             </span>
                                             <textarea 
                                                 value={treatments[scene.id] || ''}
+                                                data-treatment-index={index}
                                                 onChange={(e) => {
                                                     updateTreatment(scene.id, e.target.value);
                                                     e.target.style.height = 'auto';
@@ -237,6 +271,7 @@ const TratamientoTab = ({ project, onUpdateProject, readOnly = false }) => {
                                                     e.target.style.height = 'auto';
                                                     e.target.style.height = e.target.scrollHeight + 'px';
                                                 }}
+                                                onKeyDown={(e) => handleKeyDown(e, index)}
                                                 readOnly={readOnly}
                                                 className="w-full h-full mt-6 resize-none outline-none text-gray-800 bg-transparent text-lg leading-relaxed overflow-hidden"
                                                 placeholder="Desarrolla el tratamiento de esta escena..."
